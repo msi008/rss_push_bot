@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "name": "rss-push-bot",
+  "builds": [
+    {
+      "src": "src/app.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/src/app.js"
+    }
+  ],
+  "env": {
+    "WX_ROBOT_KEY": "@wx_robot_key",
+    "SERVICE_BASE_URL": "@service_base_url"
+  },
+  "functions": {
+    "src/app.js": {
+      "runtime": "nodejs18.x"
+    }
+  }
+}
