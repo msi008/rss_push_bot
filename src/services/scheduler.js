@@ -73,9 +73,10 @@ async function performScheduledPush() {
       pushedLinks = new Set(links.slice(-5000));
     }
     
-    await wechatService.sendRssArticles(newArticles);
+   const response = await wechatService.sendRssArticles(newArticles);
     
-    logger.info(`成功推送${newArticles.length}篇新文章到企业微信`);
+  
+    logger.info(`成功推送${newArticles.length}篇新文章到企业微信，响应状态码: ${response.statusCode}`);
     
   } catch (error) {
     logger.error('执行计划的RSS推送任务失败:', {
