@@ -1,0 +1,6 @@
+{
+  "name": "rsspush",
+  "compatibility_date": "2025-09-08", 
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/app.js"
+}
