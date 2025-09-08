@@ -1,0 +1,7 @@
+name = "rss-push-bot"
+main = "src/worker.js"          # ← 明确入口
+compatibility_date = "2024-09-08"
+compatibility_flags = ["nodejs_compat"]
+
+# 如果你的代码里必须依赖 Node.js 子进程、文件系统等，再加
+# nodejs_compat_v2 是 2024 下半年后的推荐标志
