@@ -1,0 +1,6 @@
+{
+  "name": "rsspush", // 替换为你的 Worker 名称
+  "compatibility_date": "2025-09-08", // 使用当前或最新的兼容性日期
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/app.js" // 你的 Worker 入口文件路径
+}
