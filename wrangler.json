@@ -1,6 +1,22 @@
 {
-  "name": "rsspush",
-  "compatibility_date": "2025-09-08", 
+  "name": "rsspush-worker",
+  "compatibility_date": "2025-09-08",
+  "main": "src/index.js",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "src/app.js"
+    "vars": {
+    "RSS_FEEDS": [{"name":"x@外汇交易员","url":"rsshub://twitter/user/myfxtrader","type":"rsshub"},{"name":"X@杰克船长","url":"rsshub://twitter/user/yanbojack","type":"rsshub"},{"name":"X@大猫剑客","url":"rsshub://twitter/user/dmjk001","type":"rsshub"}, {"name":"X@曹山石","url":"rsshub://twitter/user/caolei1","type":"rsshub"}],
+    "WX_ROBOT_KEY": "8952972c-393d-4dfc-8476-0c73c1bbce21",
+    "WX_ROBOT_URL": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send",
+    "CHECK_INTERVAL": 60,
+    "MAX_ITEMS_PER_FEED": 10,
+    "SCHEDULE_ENABLED": true,
+    "SCHEDULE_CRON": "*/1 * * * *",
+    "SCHEDULE_TIMEZONE": "Asia/Shanghai",
+    "LOG_LEVEL": "info",
+    "LOG_FILE": "logs/app.log",
+    "GEMINI_API_KEY": "AIzaSyBhbEFZ0Px8QaWCSopIKVyCc_quwcyxeCs",
+    "GEMINI_BASE_URL": "https://generativelanguage.googleapis.com/v1beta/openai/",
+    "GEMINI_MODEL_NAME": "gemini-2.0-flash",
+    "SERVICE_PORT": 3000
+  }
 }
