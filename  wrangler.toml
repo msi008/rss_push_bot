@@ -1,5 +1,5 @@
 name = "rss-push-bot"
-main = "src/worker.js"          # ← 明确入口
+main = "src/app.js"          # ← 明确入口
 compatibility_date = "2024-09-08"
 compatibility_flags = ["nodejs_compat"]
 
