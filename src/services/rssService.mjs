@@ -2,7 +2,7 @@
  * RSSHub订阅服务模块 (ESM版本)
  * 使用 @follow-app/client-sdk 获取订阅数据
  */
-import { FollowClient } from '@follow-app/client-sdk';
+// import { FollowClient } from '@follow-app/client-sdk'; // 已注释，避免Deno构建错误
 import axios from 'axios';
 import crypto from 'node:crypto';
 import config from '../config/config.js';
@@ -12,17 +12,17 @@ import logger from '../utils/logger.js';
 import { saveArticles, getArticles, getArticleByLink, getArticlesByLinks } from './supabaseService.js';
 
 // 初始化Follow SDK（禁用缓存）
-const follow = new FollowClient({
-  // 可以根据需要配置SDK选项
-  // baseURL: 'https://api.follow.is',
-  timeout: config.api.requestTimeout || 10000,
-  // 禁用缓存相关配置
-  headers: {
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0'
-  }
-});
+// const follow = new FollowClient({ // 已注释，避免Deno构建错误
+//   // 可以根据需要配置SDK选项
+//   // baseURL: 'https://api.follow.is',
+//   timeout: config.api.requestTimeout || 10000,
+//   // 禁用缓存相关配置
+//   headers: {
+//     'Cache-Control': 'no-cache, no-store, must-revalidate',
+//     'Pragma': 'no-cache',
+//     'Expires': '0'
+//   }
+// });
 
 /**
  * 转换为北京时间（UTC+8）
@@ -50,84 +50,84 @@ function convertToBeijingTime(date) {
  * @param {string} source - RSS源的URL或RSSHub协议路径
  * @returns {Promise<Array>} - 解析后的文章数组
  */
-async function fetchRssFeedWithSDK(source) {
-  if (!source) {
-    logger.warn('尝试获取未定义的RSS源，已跳过。');
-    return [];
-  }
+// async function fetchRssFeedWithSDK(source) { // 已注释，避免Deno构建错误
+//   if (!source) {
+//     logger.warn('尝试获取未定义的RSS源，已跳过。');
+//     return [];
+//   }
 
-  // 对于Follow SDK，直接使用原始的RSSHub协议URL
-  let feedPath = source;
+//   // 对于Follow SDK，直接使用原始的RSSHub协议URL
+//   let feedPath = source;
 
-  logger.info(`使用Follow SDK获取RSS订阅源: ${feedPath}`);
+//   logger.info(`使用Follow SDK获取RSS订阅源: ${feedPath}`);
 
-  let attempts = 0;
-  const maxAttempts = config.api.retryAttempts || 3;
+//   let attempts = 0;
+//   const maxAttempts = config.api.retryAttempts || 3;
   
-  // 记录请求开始
-  const requestInfo = cacheMonitor.recordRequestStart(feedPath);
+//   // 记录请求开始
+//   const requestInfo = cacheMonitor.recordRequestStart(feedPath);
   
-  while (attempts < maxAttempts) {
-    try {
-      // 使用智能缓存策略生成查询参数
-      const cacheParams = rsshubCache.generateCacheParams(feedPath, config.api.forceRefresh);
+//   while (attempts < maxAttempts) {
+//     try {
+//       // 使用智能缓存策略生成查询参数
+//       const cacheParams = rsshubCache.generateCacheParams(feedPath, config.api.forceRefresh);
       
-      logger.debug(`RSSHub缓存策略: ${JSON.stringify(cacheParams)}`);
+//       logger.debug(`RSSHub缓存策略: ${JSON.stringify(cacheParams)}`);
       
-      // 使用Follow SDK获取订阅数据（使用智能缓存参数）
-      const res = await follow.api.feeds.get({
-        url: feedPath,
-        query: cacheParams
-      });
+//       // 使用Follow SDK获取订阅数据（使用智能缓存参数）
+//       const res = await follow.api.feeds.get({
+//         url: feedPath,
+//         query: cacheParams
+//       });
 
-      const result = res.data || {};
-      if (result && result.entries) {
-        // 记录请求成功
-        const monitorResult = cacheMonitor.recordRequestSuccess(
-          requestInfo, 
-          result.entries.length,
-          false // 不是从缓存获取
-        );
+//       const result = res.data || {};
+//       if (result && result.entries) {
+//         // 记录请求成功
+//         const monitorResult = cacheMonitor.recordRequestSuccess(
+//           requestInfo, 
+//           result.entries.length,
+//           false // 不是从缓存获取
+//         );
         
-        logger.info(`✅ Follow SDK获取成功，共${result.entries.length}篇文章，耗时${monitorResult.duration}ms`);
+//         logger.info(`✅ Follow SDK获取成功，共${result.entries.length}篇文章，耗时${monitorResult.duration}ms`);
         
-        // 处理和过滤文章数据
-        const articles = result.entries
-          .slice(0, config.rss.maxItemsPerFeed || 10)
-          .map(item => ({
-            title: item.title?.trim() || '',
-            link: item.url || item.guid || '',
-            author: item.author || '',
-            summary: item.description || '',
-            content: item.content || '',
-            pubDate: item.publishedAt || new Date().toISOString(),
-            source: item.authorUrl || ''
-          }));
+//         // 处理和过滤文章数据
+//         const articles = result.entries
+//           .slice(0, config.rss.maxItemsPerFeed || 10)
+//           .map(item => ({
+//             title: item.title?.trim() || '',
+//             link: item.url || item.guid || '',
+//             author: item.author || '',
+//             summary: item.description || '',
+//             content: item.content || '',
+//             pubDate: item.publishedAt || new Date().toISOString(),
+//             source: item.authorUrl || ''
+//           }));
         
-        return articles;
-      } else {
-        logger.warn(`Follow SDK返回数据格式无效: ${feedPath}`);
-        return [];
-      }
-    } catch (error) {
-      attempts++;
+//         return articles;
+//       } else {
+//         logger.warn(`Follow SDK返回数据格式无效: ${feedPath}`);
+//         return [];
+//       }
+//     } catch (error) {
+//       attempts++;
       
-      // 记录请求失败
-      cacheMonitor.recordRequestFailure(requestInfo, error);
+//       // 记录请求失败
+//       cacheMonitor.recordRequestFailure(requestInfo, error);
       
-      if (attempts >= maxAttempts) {
-        logger.error(`Follow SDK获取失败: ${feedPath}, 错误: ${error.message}, 已重试${attempts}次`);
+//       if (attempts >= maxAttempts) {
+//         logger.error(`Follow SDK获取失败: ${feedPath}, 错误: ${error.message}, 已重试${attempts}次`);
         
-        // 如果SDK失败，回退到原来的API方式
-        logger.info('尝试使用备用API方式获取数据...');
-        return await fetchRssFeedWithAPI(source);
-      }
+//         // 如果SDK失败，回退到原来的API方式
+//         logger.info('尝试使用备用API方式获取数据...');
+//         return await fetchRssFeedWithAPI(source);
+//       }
       
-      logger.warn(`第${attempts}次Follow SDK获取失败，${config.api.retryDelay || 2000}ms后重试: ${feedPath}`);
-      await new Promise(resolve => setTimeout(resolve, config.api.retryDelay || 2000));
-    }
-  }
-}
+//       logger.warn(`第${attempts}次Follow SDK获取失败，${config.api.retryDelay || 2000}ms后重试: ${feedPath}`);
+//       await new Promise(resolve => setTimeout(resolve, config.api.retryDelay || 2000));
+//     }
+//   }
+// }
 
 /**
  * 备用方案：使用原来的API方式获取数据
@@ -217,8 +217,8 @@ async function fetchAllRssFeeds() {
   const rssPromises = sources.map(async (source, index) => {
     const sourceStartTime = Date.now();
     try {
-      // 使用新的SDK方式获取数据
-      const articles = await fetchRssFeedWithSDK(source.url);
+      // 使用API方式获取数据（原SDK方式已注释）
+      const articles = await fetchRssFeedWithAPI(source.url);
       const sourceDuration = Date.now() - sourceStartTime;
       logger.info(`✅ 成功获取RSS源[${index+1}/${sources.length}]: ${source.name || source.url}，共${articles.length}篇文章，耗时${sourceDuration}ms`);
       return articles;
@@ -310,8 +310,8 @@ async function checkRSSHealth() {
     for (const source of sources) {
       try {
         const startTime = Date.now();
-        // 测试SDK连接
-        await fetchRssFeedWithSDK(source.url);
+        // 测试API连接（原SDK方式已注释）
+        await fetchRssFeedWithAPI(source.url);
         const responseTime = Date.now() - startTime;
         
         healthChecks.push({
@@ -490,7 +490,7 @@ async function fetchArticlesFromSupabase(options = {}) {
 }
 
 export {
-  fetchRssFeedWithSDK as fetchRssFeed,
+  fetchRssFeedWithAPI as fetchRssFeed,
   fetchAllRssFeeds,
   fetchArticlesFromSupabase,
   checkRSSHealth,
@@ -498,7 +498,7 @@ export {
 };
 
 export default {
-  fetchRssFeed: fetchRssFeedWithSDK,
+  fetchRssFeed: fetchRssFeedWithAPI,
   fetchAllRssFeeds,
   fetchArticlesFromSupabase,
   checkRSSHealth,
