@@ -9,7 +9,9 @@
     "dev": "nodemon src/app.js",
     "test": "jest",
     "lint": "eslint src/",
-    "build": "echo '构建成功，无需编译步骤'"
+    "build": "echo '构建成功，无需编译步骤'",
+    "deno:install": "npm install --python=/usr/bin/python3",
+    "deno:start": "deno run --allow-net --allow-read --allow-env --allow-write src/app.js"
   },
   "keywords": [
     "rsshub",
@@ -38,5 +40,13 @@
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "deno": {
+    "nodeModulesDir": true,
+    "nodeModules": {
+      "better-sqlite3": {
+        "native": false
+      }
+    }
   }
 }

@@ -9,7 +9,7 @@ import config from '../config/config.js';
 import rsshubCache from '../config/rsshubCache.js';
 import cacheMonitor from '../utils/cacheMonitor.js';
 import logger from '../utils/logger.js';
-import { saveArticles, getArticles, getArticleByLink } from './supabaseService.js';
+import { saveArticles, getArticles, getArticleByLink, getArticlesByLinks } from './supabaseService.js';
 
 // 初始化Follow SDK（禁用缓存）
 const follow = new FollowClient({
@@ -208,58 +208,70 @@ async function fetchRssFeedWithAPI(source) {
  * @returns {Promise<Array>} 所有订阅源的文章列表（按时间倒序排列）
  */
 async function fetchAllRssFeeds() {
-  const allArticles = [];
+  const startTime = Date.now();
   const sources = config.feeds;
   
-  logger.info(`开始获取${sources.length}个RSS订阅源`, sources);
+  logger.info(`开始并行获取${sources.length}个RSS订阅源`, sources);
   
-  for (const source of sources) {
+  // 并行获取所有RSS源
+  const rssPromises = sources.map(async (source, index) => {
+    const sourceStartTime = Date.now();
     try {
       // 使用新的SDK方式获取数据
       const articles = await fetchRssFeedWithSDK(source.url);
-      allArticles.push(...articles);
+      const sourceDuration = Date.now() - sourceStartTime;
+      logger.info(`✅ 成功获取RSS源[${index+1}/${sources.length}]: ${source.name || source.url}，共${articles.length}篇文章，耗时${sourceDuration}ms`);
+      return articles;
     } catch (error) {
-      logger.error(`获取RSS源失败: ${source.url}`, error);
+      const sourceDuration = Date.now() - sourceStartTime;
+      logger.error(`获取RSS源[${index+1}/${sources.length}]失败: ${source.url}，耗时${sourceDuration}ms，错误: ${error.message}`);
+      return [];
     }
-    
-    // 添加请求间隔，避免Follow SDK的并发限制
-    // if (sources.indexOf(source) < sources.length - 1) {
-    //   const delay = config.api.requestInterval || 3000; // 默认3秒间隔
-    //   logger.info(`请求间隔 ${delay}ms 后继续下一个源...`);
-    //   await new Promise(resolve => setTimeout(resolve, delay));
-    // }
-  }
+  });
+  
+  // 等待所有RSS源获取完成
+  const rssResults = await Promise.all(rssPromises);
+  const allArticles = rssResults.flat();
+  const rssFetchTime = Date.now() - startTime;
+  
+  logger.info(`所有RSS源获取完成，共${allArticles.length}篇文章，耗时${rssFetchTime}ms`);
   
   // 获取财联社文章（如果配置了）
   if (config.cls.enabled) {
+    const clsStartTime = Date.now();
     try {
       logger.info('开始获取财联社文章...');
       const clsArticles = await fetchClsArticles();
       allArticles.push(...clsArticles);
-      logger.info(`财联社文章获取成功，共${clsArticles.length}篇`);
+      const clsDuration = Date.now() - clsStartTime;
+      logger.info(`财联社文章获取成功，共${clsArticles.length}篇，耗时${clsDuration}ms`);
     } catch (error) {
-      logger.error(`获取财联社文章失败: ${error.message}`);
+      const clsDuration = Date.now() - clsStartTime;
+      logger.error(`获取财联社文章失败，耗时${clsDuration}ms，错误: ${error.message}`);
     }
   }
   
   // 按发布时间倒序排列（最新的在前）
+  const sortStartTime = Date.now();
   const sortedArticles = allArticles.sort((a, b) => {
     const dateA = new Date(a.pubDate);
     const dateB = new Date(b.pubDate);
     return dateB - dateA;
   });
+  const sortDuration = Date.now() - sortStartTime;
+  logger.info(`文章排序完成，耗时${sortDuration}ms`);
   
   // 如果启用了Supabase，保存文章到数据库
   if (config.supabase.enabled) {
+    const dbStartTime = Date.now();
     try {
+      // 优化：批量检查文章是否存在
+      const articleLinks = sortedArticles.map(article => article.link);
+      const existingArticles = await getArticlesByLinks(articleLinks);
+      const existingLinks = new Set(existingArticles.map(article => article.link));
+      
       // 过滤掉已存在的文章
-      const newArticles = [];
-      for (const article of sortedArticles) {
-        const existingArticle = await getArticleByLink(article.link);
-        if (!existingArticle) {
-          newArticles.push(article);
-        }
-      }
+      const newArticles = sortedArticles.filter(article => !existingLinks.has(article.link));
       
       if (newArticles.length > 0) {
         logger.info(`发现${newArticles.length}篇新文章，正在保存到Supabase...`);
@@ -272,12 +284,17 @@ async function fetchAllRssFeeds() {
       } else {
         logger.info('没有新文章需要保存到Supabase');
       }
+      
+      const dbDuration = Date.now() - dbStartTime;
+      logger.info(`数据库操作完成，耗时${dbDuration}ms`);
     } catch (error) {
-      logger.error(`保存文章到Supabase异常: ${error.message}`);
+      const dbDuration = Date.now() - dbStartTime;
+      logger.error(`保存文章到Supabase异常，耗时${dbDuration}ms，错误: ${error.message}`);
     }
   }
   
-  logger.info(`成功获取并排序所有RSS文章，共${sortedArticles.length}篇`);
+  const totalDuration = Date.now() - startTime;
+  logger.info(`✅ 成功获取并排序所有RSS文章，共${sortedArticles.length}篇，总耗时${totalDuration}ms`);
   return sortedArticles;
 }
 

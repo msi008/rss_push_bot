@@ -1,0 +1,26 @@
+{
+  "imports": {
+    "std/": "https://deno.land/std@0.208.0/"
+  },
+  "tasks": {
+    "start": "deno run --allow-net --allow-read --allow-env --allow-write src/app.js"
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"]
+  },
+  "deploy": {
+    "nodeModulesDir": true,
+    "nodeModules": {
+      "better-sqlite3": {
+        "native": false
+      }
+    }
+  },
+  "nodeModulesDir": true,
+  "nodeModules": {
+    "better-sqlite3": {
+      "native": false
+    }
+  }
+}

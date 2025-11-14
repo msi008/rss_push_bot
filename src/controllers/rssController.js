@@ -7,6 +7,16 @@ import * as wechatService from '../services/wechatService.js';
 import logger from '../utils/logger.js';
 import config from '../config/config.js';
 
+// 缓存变量
+let articlesCache = {
+  data: null,
+  timestamp: null,
+  ttl: 5 * 60 * 1000 // 5分钟缓存
+};
+
+// 缓存开关，默认关闭
+let cacheEnabled = false;
+
 /**
  * 获取所有RSS文章
  * @route GET /api/rss/articles
@@ -15,12 +25,63 @@ import config from '../config/config.js';
  */
 async function getArticles(req, res, next) {
   try {
+    const now = Date.now();
+    const forceRefresh = req.query.refresh === 'true';
+    const enableCache = req.query.cache === 'true';
+    
+    // 更新缓存开关状态
+    if (enableCache) {
+      cacheEnabled = true;
+    } else if (req.query.cache === 'false') {
+      cacheEnabled = false;
+      // 清空缓存
+      articlesCache = {
+        data: null,
+        timestamp: null,
+        ttl: 5 * 60 * 1000
+      };
+    }
+    
+    // 检查缓存是否有效（仅当缓存启用时）
+    if (cacheEnabled && 
+        !forceRefresh && 
+        articlesCache.data && 
+        articlesCache.timestamp && 
+        (now - articlesCache.timestamp < articlesCache.ttl)) {
+      logger.info(`使用缓存数据，缓存时间: ${now - articlesCache.timestamp}ms`);
+      return res.json({
+        success: true,
+        data: articlesCache.data,
+        count: articlesCache.data.length,
+        cached: true,
+        cacheEnabled: true,
+        timestamp: articlesCache.timestamp
+      });
+    }
+    
+    // 缓存无效或强制刷新，重新获取数据
+    const startTime = Date.now();
     const articles = await rssService.fetchAllRssFeeds();
+    const duration = Date.now() - startTime;
+    
+    // 更新缓存（仅当缓存启用时）
+    if (cacheEnabled) {
+      articlesCache = {
+        data: articles,
+        timestamp: now,
+        ttl: 5 * 60 * 1000 // 5分钟缓存
+      };
+    }
+    
+    logger.info(`获取RSS文章完成，共${articles.length}篇，耗时${duration}ms`);
     
     res.json({
       success: true,
       data: articles,
       count: articles.length,
+      cached: false,
+      cacheEnabled,
+      duration,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

@@ -3,7 +3,7 @@ import axios from 'axios'
 // 创建axios实例
 const apiClient = axios.create({
   baseURL: '/api/rss',
-  timeout: 10000,
+  timeout: 30000, // 增加到30秒
   headers: {
     'Content-Type': 'application/json'
   }
@@ -36,6 +36,11 @@ export const api = {
   // 获取所有文章
   async getArticles() {
     return await apiClient.get('/articles')
+  },
+
+  // 从Supabase获取文章
+  async getArticlesFromSupabase(params = {}) {
+    return await apiClient.get('/articles/supabase', { params })
   },
 
   // 推送文章到企业微信

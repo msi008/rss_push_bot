@@ -193,6 +193,45 @@ async function getArticleByLink(link) {
 }
 
 /**
+ * 根据链接批量获取文章
+ * @param {Array} links - 文章链接数组
+ * @returns {Promise<Array>} - 文章数组
+ */
+async function getArticlesByLinks(links) {
+  const client = ensureSupabase();
+  if (!client) {
+    logger.warn('Supabase不可用，返回空数组');
+    return [];
+  }
+
+  try {
+    const { data, error } = await client
+      .from('articles')
+      .select('*')
+      .in('link', links);
+
+    if (error) {
+      logger.error(`批量获取文章失败: ${error.message}`);
+      return [];
+    }
+
+    // 转换数据格式以匹配现有接口
+    return data.map(article => ({
+      title: article.title,
+      link: article.link,
+      author: article.author,
+      summary: article.summary,
+      content: article.content,
+      pubDate: article.pub_date,
+      source: article.source
+    }));
+  } catch (error) {
+    logger.error(`批量获取文章异常: ${error.message}`);
+    return [];
+  }
+}
+
+/**
  * 删除指定日期之前的文章
  * @param {string} cutoffDate - 截止日期
  * @returns {Promise<Object>} - 删除结果
@@ -266,6 +305,7 @@ export {
   saveArticles,
   getArticles,
   getArticleByLink,
+  getArticlesByLinks,
   deleteOldArticles,
   getArticleStats
 };

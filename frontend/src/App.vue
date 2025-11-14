@@ -40,6 +40,14 @@
                 clearable
               />
               
+              <!-- 数据源选择 -->
+              <div class="filter-option" style="margin-top: 15px;">
+                <el-radio-group v-model="dataSource" @change="onDataSourceChange">
+                  <el-radio label="memory">内存数据</el-radio>
+                  <el-radio label="supabase">Supabase云存储</el-radio>
+                </el-radio-group>
+              </div>
+              
               <!-- 财联社文章过滤开关 -->
               <div class="filter-option" style="margin-top: 15px;">
                 <el-switch
@@ -130,6 +138,7 @@ const searchKeyword = ref('')
 const activeCategory = ref('all')
 const activeSource = ref('')
 const filterClsArticles = ref(false)
+const dataSource = ref('memory') // 新增数据源选择
 
 // 分类定义
 const categories = ref([
@@ -179,17 +188,32 @@ const filteredArticles = computed(() => {
 const refreshArticles = async () => {
   loading.value = true
   try {
-    const response = await api.getArticles()
+    let response
+    // 根据数据源选择不同的API
+    if (dataSource.value === 'supabase') {
+      response = await api.getArticlesFromSupabase()
+      ElMessage.success('已从Supabase云存储加载文章')
+    } else {
+      response = await api.getArticles()
+      ElMessage.success(`成功获取 ${response.count} 篇文章`)
+    }
+    
     if (response.success) {
       articles.value = response.data
       updateCategoryCounts()
-      ElMessage.success(`成功获取 ${response.count} 篇文章`)
     }
   } catch (error) {
     ElMessage.error('获取文章失败：' + error.message)
   } finally {
     loading.value = false
   }
+}
+
+// 数据源切换处理
+const onDataSourceChange = () => {
+  console.log('数据源切换为:', dataSource.value)
+  // 刷新文章数据
+  refreshArticles()
 }
 
 const selectCategory = (categoryId) => {
