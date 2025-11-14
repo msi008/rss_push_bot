@@ -104,9 +104,7 @@
           <router-view 
             :articles="filteredArticles"
             :loading="loading"
-            :pagination="pagination"
             @refresh="refreshArticles"
-            @load-more="loadMoreArticles"
           />
         </el-main>
       </el-container>
@@ -206,23 +204,23 @@ const handleSearch = () => {
   const query = searchKeyword.value ? { search: encodeURIComponent(searchKeyword.value) } : {}
   router.push({ path: '/', query })
 }
-
-const refreshArticles = async () => {
+  
+  const refreshArticles = async () => {
   loading.value = true
   try {
     let response
     // 根据数据源选择不同的API
     if (dataSource.value === 'supabase') {
-      response = await api.getArticlesFromSupabase({ page: 1, limit: 20 })
+      response = await api.getArticlesFromSupabase({ page: 1, limit: 1000 }) // 获取所有数据
       ElMessage.success('已从Supabase云存储加载文章')
     } else {
-      response = await api.getArticles({ page: 1, limit: 20 })
+      response = await api.getArticles({ page: 1, limit: 1000 }) // 获取所有数据
       ElMessage.success(`成功获取 ${response.count} 篇文章`)
     }
     
     if (response.success) {
       articles.value = response.data
-      pagination.value = response.pagination || {
+      pagination.value = {
         page: 1,
         limit: 20,
         total: response.count || response.data.length,
@@ -236,36 +234,8 @@ const refreshArticles = async () => {
     loading.value = false
   }
 }
-
-// 加载更多文章
-const loadMoreArticles = async (page, limit) => {
-  try {
-    let response
-    // 根据数据源选择不同的API
-    if (dataSource.value === 'supabase') {
-      response = await api.getArticlesFromSupabase({ page, limit })
-    } else {
-      response = await api.getArticles({ page, limit })
-    }
-    
-    if (response.success) {
-      // 追加新文章到现有列表
-      articles.value = [...articles.value, ...response.data]
-      // 更新分页信息
-      pagination.value = response.pagination || {
-        page,
-        limit,
-        total: articles.value.length,
-        hasMore: false
-      }
-    }
-  } catch (error) {
-    ElMessage.error('加载更多文章失败：' + error.message)
-    throw error
-  }
-}
-
-// 数据源切换处理
+  
+  // 数据源切换处理
 const onDataSourceChange = () => {
   // 重置数据
   articles.value = []

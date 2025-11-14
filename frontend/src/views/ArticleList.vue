@@ -145,27 +145,7 @@
         </el-empty>
       </div>
 
-      <!-- 滚动加载更多 -->
-      <div v-if="hasMore && !loading" class="load-more-section">
-        <el-button 
-          @click="loadMore" 
-          :loading="loadingMore"
-          style="width: 100%;"
-        >
-          加载更多
-        </el-button>
-      </div>
-      
-      <!-- 加载中状态 -->
-      <div v-if="loadingMore" class="loading-more">
-        <el-icon class="is-loading"><Loading /></el-icon>
-        <span>加载中...</span>
-      </div>
-      
-      <!-- 无更多数据 -->
-      <div v-if="!hasMore && articles.length > 0" class="no-more">
-        <span>已加载全部文章</span>
-      </div>
+      <!-- 分页控件已移除，直接显示所有内容 -->
     </div>
   </div>
 </template>
@@ -180,8 +160,7 @@ import {
   User, 
   View, 
   DocumentCopy, 
-  Share,
-  Loading
+  Share
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
@@ -206,16 +185,12 @@ const props = defineProps({
 })
 
 // 定义事件
-const emit = defineEmits(['refresh', 'load-more'])
+const emit = defineEmits(['refresh', 'page-change'])
 
 // 响应式数据
 const searchText = ref('')
 const sortBy = ref('newest')
-const currentPage = ref(1)
-const pageSize = ref(20)
 const pushing = ref(false)
-const loadingMore = ref(false)
-const hasMore = ref(true)
 
 // 计算属性
 const todayArticlesCount = computed(() => {
@@ -250,60 +225,11 @@ const filteredAndSortedArticles = computed(() => {
     return sortBy.value === 'newest' ? dateB - dateA : dateA - dateB
   })
   
-  // 不再进行分页，返回所有过滤后的文章
+  // 直接返回过滤后的所有文章，不再进行分页
   return filtered
 })
 
-// 监听分页信息变化
-watch(() => props.pagination, (newPagination) => {
-  if (newPagination) {
-    hasMore.value = newPagination.hasMore !== undefined ? newPagination.hasMore : true
-  }
-}, { immediate: true })
-
-// 滚动加载更多
-const loadMore = async () => {
-  if (loadingMore.value || !hasMore.value) return
-  
-  loadingMore.value = true
-  currentPage.value += 1
-  
-  try {
-    await emit('load-more', currentPage.value, pageSize.value)
-  } catch (error) {
-    console.error('加载更多失败:', error)
-    ElMessage.error('加载更多失败')
-    currentPage.value -= 1 // 恢复页码
-  } finally {
-    loadingMore.value = false
-  }
-}
-
-// 监听搜索条件变化重置分页
-watch([searchText, sortBy], () => {
-  currentPage.value = 1
-})
-
-// 监听articles变化重置分页
-watch(() => props.articles, () => {
-  currentPage.value = 1
-})
-
-// 滚动监听
-const handleScroll = () => {
-  const { scrollTop, scrollHeight, clientHeight } = document.documentElement
-  if (scrollTop + clientHeight >= scrollHeight - 100 && hasMore.value && !loadingMore.value) {
-    loadMore()
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('scroll', handleScroll)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
-})
+// 分页变化处理方法已移除，不再需要
 
 // 方法
 const formatTime = (timeString) => {
@@ -449,16 +375,6 @@ const pushToWeChat = async () => {
     pushing.value = false
   }
 }
-
-// 监听搜索条件变化重置分页
-watch([searchText, sortBy], () => {
-  currentPage.value = 1
-})
-
-// 监听articles变化重置分页
-watch(() => props.articles, () => {
-  currentPage.value = 1
-})
 </script>
 
 <style scoped>
@@ -696,45 +612,6 @@ img,
 .empty-state {
   text-align: center;
   padding: 60px 0;
-}
-
-.load-more-section {
-  text-align: center;
-  padding: 20px 0;
-}
-
-.loading-more {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  padding: 20px 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.no-more {
-  text-align: center;
-  padding: 20px 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.no-more::before,
-.no-more::after {
-  content: '';
-  display: inline-block;
-  width: 60px;
-  height: 1px;
-  background: #e4e7ed;
-  margin: 0 10px;
-  vertical-align: middle;
-}
-
-.pagination-section {
-  display: flex;
-  justify-content: center;
-  margin-top: 30px;
 }
 
 @media (max-width: 768px) {
