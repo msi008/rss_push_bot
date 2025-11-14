@@ -10,10 +10,8 @@
     "test": "jest",
     "lint": "eslint src/",
     "build": "echo '构建成功，无需编译步骤'",
-    "deno:install": "npm install --ignore-scripts",
-    "deno:start": "deno run --allow-net --allow-read --allow-env --allow-write src/app.js",
-    "no-python:install": "npm install --ignore-scripts",
-    "no-python:start": "node src/app.js"
+    "deno:install": "npm install --python=/usr/bin/python3",
+    "deno:start": "deno run --allow-net --allow-read --allow-env --allow-write src/app.js"
   },
   "keywords": [
     "rsshub",
@@ -25,6 +23,7 @@
   "author": "RSS推送服务",
   "license": "MIT",
   "dependencies": {
+    "@follow-app/client-sdk": "^0.3.84",
     "@supabase/supabase-js": "^2.81.1",
     "axios": "^1.6.2",
     "cors": "^2.8.5",
@@ -43,6 +42,11 @@
     "node": ">=16.0.0"
   },
   "deno": {
-    "nodeModulesDir": true
+    "nodeModulesDir": true,
+    "nodeModules": {
+      "better-sqlite3": {
+        "native": false
+      }
+    }
   }
 }

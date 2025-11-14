@@ -2,7 +2,7 @@
  * RSS订阅控制器
  * 处理与RSS订阅相关的HTTP请求
  */
-import * as rssService from '../services/rssService.mjs';
+import * as rssService from '../services/rssServiceNoPython.mjs';
 import * as wechatService from '../services/wechatService.js';
 import logger from '../utils/logger.js';
 import config from '../config/config.js';
