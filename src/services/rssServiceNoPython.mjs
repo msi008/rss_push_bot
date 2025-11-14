@@ -3,7 +3,7 @@
  * 不依赖原生模块的纯JavaScript实现
  */
 import axios from 'axios';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import config from '../config/config.js';
 import rsshubCache from '../config/rsshubCache.js';
 import cacheMonitor from '../utils/cacheMonitor.js';

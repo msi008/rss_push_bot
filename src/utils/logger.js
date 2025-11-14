@@ -3,8 +3,8 @@
  * 使用Winston创建结构化日志系统
  */
 import winston from 'winston';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import config from '../config/config.js';
 
 const __filename = fileURLToPath(import.meta.url);

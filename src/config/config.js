@@ -2,8 +2,8 @@
  * 应用配置文件
  * 管理环境变量和应用配置
  */
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
