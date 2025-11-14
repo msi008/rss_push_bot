@@ -389,11 +389,33 @@ async function fetchClsArticles(lastTime = null, pageSize = null) {
   }
 }
 
+/**
+ * 从Supabase获取文章（如果配置了Supabase）
+ * @param {Object} options - 查询选项
+ * @returns {Promise<Array>} - 文章数组
+ */
+async function fetchArticlesFromSupabase(options = {}) {
+  if (!config.supabase.enabled) {
+    logger.info('Supabase未启用，返回空数组');
+    return [];
+  }
+  
+  try {
+    const articles = await getArticles(options);
+    logger.info(`从Supabase获取${articles.length}篇文章`);
+    return articles;
+  } catch (error) {
+    logger.error(`从Supabase获取文章失败: ${error.message}`);
+    return [];
+  }
+}
+
 // 导出函数
 export {
   fetchRssFeed,
   fetchAllRssFeeds,
   checkRSSHealth,
   fetchClsArticles,
+  fetchArticlesFromSupabase,
   convertToBeijingTime
 };

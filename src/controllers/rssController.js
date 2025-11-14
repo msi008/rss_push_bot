@@ -29,6 +29,11 @@ async function getArticles(req, res, next) {
     const forceRefresh = req.query.refresh === 'true';
     const enableCache = req.query.cache === 'true';
     
+    // 添加分页参数
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    
     // 更新缓存开关状态
     if (enableCache) {
       cacheEnabled = true;
@@ -49,10 +54,20 @@ async function getArticles(req, res, next) {
         articlesCache.timestamp && 
         (now - articlesCache.timestamp < articlesCache.ttl)) {
       logger.info(`使用缓存数据，缓存时间: ${now - articlesCache.timestamp}ms`);
+      
+      // 对缓存数据进行分页处理
+      const paginatedData = articlesCache.data.slice(offset, offset + limit);
+      
       return res.json({
         success: true,
-        data: articlesCache.data,
-        count: articlesCache.data.length,
+        data: paginatedData,
+        pagination: {
+          page,
+          limit,
+          total: articlesCache.data.length,
+          hasMore: offset + limit < articlesCache.data.length
+        },
+        count: paginatedData.length,
         cached: true,
         cacheEnabled: true,
         timestamp: articlesCache.timestamp
@@ -61,24 +76,33 @@ async function getArticles(req, res, next) {
     
     // 缓存无效或强制刷新，重新获取数据
     const startTime = Date.now();
-    const articles = await rssService.fetchAllRssFeeds();
+    const allArticles = await rssService.fetchAllRssFeeds();
     const duration = Date.now() - startTime;
+    
+    // 对数据进行分页处理
+    const paginatedData = allArticles.slice(offset, offset + limit);
     
     // 更新缓存（仅当缓存启用时）
     if (cacheEnabled) {
       articlesCache = {
-        data: articles,
+        data: allArticles,
         timestamp: now,
         ttl: 5 * 60 * 1000 // 5分钟缓存
       };
     }
     
-    logger.info(`获取RSS文章完成，共${articles.length}篇，耗时${duration}ms`);
+    logger.info(`获取RSS文章完成，共${allArticles.length}篇，返回${paginatedData.length}篇，耗时${duration}ms`);
     
     res.json({
       success: true,
-      data: articles,
-      count: articles.length,
+      data: paginatedData,
+      pagination: {
+        page,
+        limit,
+        total: allArticles.length,
+        hasMore: offset + limit < allArticles.length
+      },
+      count: paginatedData.length,
       cached: false,
       cacheEnabled,
       duration,
@@ -98,7 +122,7 @@ async function getArticles(req, res, next) {
 async function getArticlesFromSupabase(req, res, next) {
   try {
     const {
-      limit = 50,
+      limit = 20,
       offset = 0,
       orderBy = 'pub_date',
       order = 'desc',
@@ -119,9 +143,21 @@ async function getArticlesFromSupabase(req, res, next) {
     
     const articles = await rssService.fetchArticlesFromSupabase(options);
     
+    // 获取总数以支持分页信息
+    const countOptions = { ...options };
+    delete countOptions.limit;
+    delete countOptions.offset;
+    const allArticles = await rssService.fetchArticlesFromSupabase(countOptions);
+    
     res.json({
       success: true,
       data: articles,
+      pagination: {
+        page: Math.floor(offset / limit) + 1,
+        limit: parseInt(limit),
+        total: allArticles.length,
+        hasMore: offset + articles.length < allArticles.length
+      },
       count: articles.length,
       options,
       timestamp: new Date().toISOString()

@@ -34,13 +34,23 @@ apiClient.interceptors.response.use(
 // API方法
 export const api = {
   // 获取所有文章
-  async getArticles() {
-    return await apiClient.get('/articles')
+  async getArticles(params = {}) {
+    const { page = 1, limit = 20, ...otherParams } = params;
+    return await apiClient.get('/articles', { params: { page, limit, ...otherParams } });
   },
 
   // 从Supabase获取文章
   async getArticlesFromSupabase(params = {}) {
-    return await apiClient.get('/articles/supabase', { params })
+    const { page = 1, limit = 20, offset = 0, ...otherParams } = params;
+    // 计算偏移量
+    const calculatedOffset = page > 1 ? (page - 1) * limit : offset;
+    return await apiClient.get('/articles/supabase', { 
+      params: { 
+        limit, 
+        offset: calculatedOffset, 
+        ...otherParams 
+      } 
+    });
   },
 
   // 推送文章到企业微信

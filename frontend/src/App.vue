@@ -104,7 +104,9 @@
           <router-view 
             :articles="filteredArticles"
             :loading="loading"
+            :pagination="pagination"
             @refresh="refreshArticles"
+            @load-more="loadMoreArticles"
           />
         </el-main>
       </el-container>
@@ -139,6 +141,12 @@ const activeCategory = ref('all')
 const activeSource = ref('')
 const filterClsArticles = ref(false)
 const dataSource = ref('memory') // 新增数据源选择
+const pagination = ref({
+  page: 1,
+  limit: 20,
+  total: 0,
+  hasMore: true
+})
 
 // 分类定义
 const categories = ref([
@@ -185,21 +193,41 @@ const filteredArticles = computed(() => {
 })
 
 // 方法
+// 搜索处理
+const handleSearch = () => {
+  // 重置分页信息
+  pagination.value = {
+    page: 1,
+    limit: 20,
+    total: 0,
+    hasMore: true
+  }
+  // 更新URL参数以反映搜索状态
+  const query = searchKeyword.value ? { search: encodeURIComponent(searchKeyword.value) } : {}
+  router.push({ path: '/', query })
+}
+
 const refreshArticles = async () => {
   loading.value = true
   try {
     let response
     // 根据数据源选择不同的API
     if (dataSource.value === 'supabase') {
-      response = await api.getArticlesFromSupabase()
+      response = await api.getArticlesFromSupabase({ page: 1, limit: 20 })
       ElMessage.success('已从Supabase云存储加载文章')
     } else {
-      response = await api.getArticles()
+      response = await api.getArticles({ page: 1, limit: 20 })
       ElMessage.success(`成功获取 ${response.count} 篇文章`)
     }
     
     if (response.success) {
       articles.value = response.data
+      pagination.value = response.pagination || {
+        page: 1,
+        limit: 20,
+        total: response.count || response.data.length,
+        hasMore: false
+      }
       updateCategoryCounts()
     }
   } catch (error) {
@@ -209,10 +237,47 @@ const refreshArticles = async () => {
   }
 }
 
+// 加载更多文章
+const loadMoreArticles = async (page, limit) => {
+  try {
+    let response
+    // 根据数据源选择不同的API
+    if (dataSource.value === 'supabase') {
+      response = await api.getArticlesFromSupabase({ page, limit })
+    } else {
+      response = await api.getArticles({ page, limit })
+    }
+    
+    if (response.success) {
+      // 追加新文章到现有列表
+      articles.value = [...articles.value, ...response.data]
+      // 更新分页信息
+      pagination.value = response.pagination || {
+        page,
+        limit,
+        total: articles.value.length,
+        hasMore: false
+      }
+    }
+  } catch (error) {
+    ElMessage.error('加载更多文章失败：' + error.message)
+    throw error
+  }
+}
+
 // 数据源切换处理
 const onDataSourceChange = () => {
-  console.log('数据源切换为:', dataSource.value)
-  // 刷新文章数据
+  // 重置数据
+  articles.value = []
+  pagination.value = {
+    page: 1,
+    limit: 20,
+    total: 0,
+    hasMore: true
+  }
+  activeCategory.value = 'all'
+  activeSource.value = ''
+  // 重新获取数据
   refreshArticles()
 }
 
@@ -224,6 +289,13 @@ const selectCategory = (categoryId) => {
   
   activeCategory.value = categoryId
   activeSource.value = ''
+  // 重置分页信息
+  pagination.value = {
+    page: 1,
+    limit: 20,
+    total: 0,
+    hasMore: true
+  }
   // 更新URL参数以反映当前筛选状态
   const query = categoryId === 'all' ? {} : { category: categoryId }
   router.push({ path: '/', query })
@@ -231,6 +303,13 @@ const selectCategory = (categoryId) => {
 
 const selectSource = (sourceName) => {
   activeSource.value = activeSource.value === sourceName ? '' : sourceName
+  // 重置分页信息
+  pagination.value = {
+    page: 1,
+    limit: 20,
+    total: 0,
+    hasMore: true
+  }
   // 更新URL参数以反映当前筛选状态
   const query = activeSource.value ? { source: encodeURIComponent(activeSource.value) } : {}
   
