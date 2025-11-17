@@ -56,9 +56,10 @@
     <!-- 文章列表 -->
     <div v-else class="articles-container">
       <div 
-        v-for="article in filteredAndSortedArticles" 
+        v-for="(article, index) in filteredAndSortedArticles" 
         :key="article.link"
-        class="article-card"
+        class="article-card fade-in"
+        :style="{ animationDelay: `${index * 0.05}s` }"
       >
         <div class="article-header">
           <h3 class="article-title">
@@ -379,9 +380,11 @@ const pushToWeChat = async () => {
 
 <style scoped>
 .article-list-container {
-  padding: 20px;
+  padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
+  background: #f5f7fa;
+  min-height: 100vh;
 }
 
 .list-header {
@@ -391,6 +394,22 @@ const pushToWeChat = async () => {
   margin-bottom: 30px;
   flex-wrap: wrap;
   gap: 20px;
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.list-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
 }
 
 .stats-section {
@@ -400,6 +419,15 @@ const pushToWeChat = async () => {
 
 .stat-item {
   text-align: center;
+  padding: 10px 20px;
+  border-radius: 12px;
+  background: #f8f9fa;
+  transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .filter-section {
@@ -436,72 +464,114 @@ img,
 .articles-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
 .article-card {
   background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  border: 1px solid #e4e7ed;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.article-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .article-card:hover {
-  box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px);
+}
+
+.article-card:hover::before {
+  opacity: 1;
 }
 
 .article-header {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .article-title {
-  margin: 0 0 12px 0;
-  font-size: 18px;
-  font-weight: 600;
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  font-weight: 700;
   line-height: 1.4;
+  color: #2c3e50;
 }
 
 .article-title a {
-  color: #303133;
+  color: inherit;
   text-decoration: none;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
+  position: relative;
+  display: inline-block;
+}
+
+.article-title a::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
 }
 
 .article-title a:hover {
-  color: #409eff;
+  color: #667eea;
+}
+
+.article-title a:hover::after {
+  width: 100%;
 }
 
 .article-meta {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 16px;
   flex-wrap: wrap;
-  font-size: 12px;
-  color: #909399;
+  font-size: 13px;
+  color: #7f8c8d;
 }
 
 .source-tag {
   margin-right: 5px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+  border: none;
+  color: #495057;
 }
 
 .publish-time, .author {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .article-content {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .article-summary {
-  margin: 0 0 12px 0;
-  line-height: 1.6;
-  color: #606266;
-  font-size: 14px;
+  margin: 0 0 16px 0;
+  line-height: 1.7;
+  color: #4a5568;
+  font-size: 15px;
   overflow: visible;
 }
 
@@ -517,15 +587,15 @@ img,
   width: 100% !important;
   height: auto !important;
   max-height: 300px !important;
-  border-radius: 6px;
-  margin: 8px 0 !important;
+  border-radius: 12px;
+  margin: 12px 0 !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   display: block;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 0.3s ease, transform 0.2s ease;
+  transition: opacity 0.5s ease, transform 0.3s ease;
 }
 
 .article-summary img.loaded {
@@ -534,7 +604,7 @@ img,
 
 .article-summary img:hover {
   transform: scale(1.02);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
 }
 
 .article-full-content img,
@@ -545,15 +615,15 @@ img,
   width: 100% !important;
   height: auto !important;
   max-height: 400px !important;
-  border-radius: 6px;
-  margin: 10px 0 !important;
+  border-radius: 12px;
+  margin: 16px 0 !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   display: block;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 0.3s ease, transform 0.2s ease;
+  transition: opacity 0.5s ease, transform 0.3s ease;
 }
 
 .article-full-content img.loaded {
@@ -562,7 +632,7 @@ img,
 
 .article-full-content img:hover {
   transform: scale(1.02);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
 }
 
 /* 响应式图片适配 */
@@ -571,7 +641,7 @@ img,
   .article-full-content img {
     max-width: 100% !important;
     height: auto !important;
-    margin: 6px 0;
+    margin: 8px 0;
   }
 }
 
@@ -580,60 +650,125 @@ img,
   .article-summary img,
   .article-full-content img {
     max-width: 100% !important;
-    margin: 12px 0;
+    margin: 16px 0;
   }
 }
 
 .read-more {
-  margin-top: 8px;
+  margin-top: 12px;
+  text-align: center;
 }
 
 .expand-btn {
-  padding: 0;
-  font-size: 12px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+  color: #495057;
+  transition: all 0.3s ease;
+}
+
+.expand-btn:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  transform: translateY(-1px);
 }
 
 .article-full-content {
-  margin-top: 12px;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border-left: 3px solid #409eff;
-  font-size: 14px;
-  line-height: 1.6;
+  margin-top: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border-left: 4px solid #667eea;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #2d3748;
 }
 
 .article-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.article-actions .el-button {
+  border-radius: 20px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.article-actions .el-button:hover {
+  transform: translateY(-2px);
 }
 
 .empty-state {
   text-align: center;
-  padding: 60px 0;
+  padding: 80px 0;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
 
 @media (max-width: 768px) {
+  .article-list-container {
+    padding: 16px;
+  }
+  
   .list-header {
     flex-direction: column;
     align-items: stretch;
+    padding: 16px;
   }
   
   .stats-section {
     justify-content: space-around;
+    gap: 15px;
+  }
+  
+  .stat-item {
+    padding: 8px 12px;
   }
   
   .filter-section {
     flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .article-card {
+    padding: 20px;
+  }
+  
+  .article-title {
+    font-size: 18px;
   }
   
   .article-meta {
-    gap: 8px;
+    gap: 12px;
   }
   
   .article-actions {
     justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .article-list-container {
+    padding: 12px;
+  }
+  
+  .article-card {
+    padding: 16px;
+  }
+  
+  .article-title {
+    font-size: 16px;
+  }
+  
+  .article-summary {
+    font-size: 14px;
   }
 }
 </style>
