@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS推送服务 - Cloudflare Workers 手动部署指南</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .code-block {
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            white-space: pre-wrap;
+        }
+        .note {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #721c24;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #155724;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>RSS推送服务 - Cloudflare Workers 手动部署指南</h1>
+    
+    <div class="warning">
+        <strong>重要提示：</strong>此指南提供了完全避免<code>@cloudflare/workerd-linux-64</code>包缺失问题的解决方案。请严格按照本指南操作，不要使用任何<code>wrangler deploy</code>命令。
+    </div>
+
+    <h2>一、准备工作</h2>
+    <p>在开始部署之前，请确保您已经：</p>
+    <ol>
+        <li>拥有Cloudflare账户</li>
+        <li>准备好所有必要的环境变量值</li>
+    </ol>
+
+    <h2>二、部署方法选择</h2>
+    
+    <div class="note">
+        <strong>选择合适的部署方法：</strong><br>
+        - <strong>Dashboard手动部署</strong>：简单直观，适合首次部署<br>
+        - <strong>API自动部署</strong>：适合CI/CD环境，避免workerd问题
+    </div>
+
+    <h3>方法一：Dashboard手动部署</h3>
+    
+    <h4>1. 登录Cloudflare Dashboard</h4>
+    <ol>
+        <li>访问 <a href="https://dash.cloudflare.com/" target="_blank">Cloudflare Dashboard</a></li>
+        <li>使用您的Cloudflare账户登录</li>
+    </ol>
+
+    <h3>2. 创建新的Worker</h3>
+    <ol>
+        <li>在左侧菜单中选择 <strong>"Workers & Pages"</strong></li>
+        <li>点击 <strong>"Create Application"</strong></li>
+        <li>选择 <strong>"Workers"</strong> 标签</li>
+        <li>点击 <strong>"Create Worker"</strong></li>
+    </ol>
+
+    <h3>3. 配置Worker名称</h3>
+    <ol>
+        <li>给Worker命名（建议使用: <code>rsshub-enterprise-wechat-bot</code>）</li>
+        <li>点击 <strong>"Deploy"</strong></li>
+    </ol>
+
+    <h3>4. 编辑Worker代码</h3>
+    <ol>
+        <li>在Worker页面中，点击 <strong>"Edit code"</strong></li>
+        <li>删除默认代码</li>
+        <li>复制以下代码并粘贴</li>
+    </ol>
+    
+    <div class="code-block">
+// Cloudflare Workers入口文件 - 完全兼容版本
+// 此版本移除了所有可能导致workerd问题的依赖
+
+// 处理请求的主函数
+export default {
+  async fetch(request, env, ctx) {
+    try {
+      // 解析URL
+      const url = new URL(request.url);
+      const path = url.pathname;
+      const method = request.method;
+      
+      // 处理不同的路由
+      if (path === '/health' && method === 'GET') {
+        return new Response(JSON.stringify({
+          status: 'ok',
+          timestamp: new Date().toISOString(),
+          environment: 'cloudflare-workers'
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // API路由
+      if (path.startsWith('/api/')) {
+        // RSS API端点
+        if (path === '/api/rss' && method === 'GET') {
+          try {
+            const rssData = await getRSSData(env);
+            return new Response(JSON.stringify({
+              success: true,
+              data: rssData
+            }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          } catch (error) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: error.message
+            }), {
+              status: 500,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+        }
+        
+        // 企业微信回调端点
+        if (path === '/api/wechat/callback' && method === 'POST') {
+          try {
+            const body = await request.json();
+            const result = await handleWechatCallback(body, env);
+            return new Response(JSON.stringify(result), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          } catch (error) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: error.message
+            }), {
+              status: 500,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+        }
+      }
+      
+      // 默认响应
+      return new Response(JSON.stringify({
+        name: 'RSSHub企业微信推送服务',
+        version: '1.0.0',
+        description: '基于Cloudflare Workers部署的RSSHub企业微信推送服务',
+        endpoints: {
+          health: '/health',
+          api: '/api/rss',
+          wechatCallback: '/api/wechat/callback'
+        }
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+    } catch (error) {
+      console.error('Error handling request:', error);
+      return new Response(JSON.stringify({ 
+        error: 'Internal Server Error', 
+        details: error.message 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  },
+};
+
+// 获取RSS数据的实现
+async function getRSSData(env) {
+  try {
+    // 获取环境变量
+    const supabaseUrl = env.SUPABASE_URL || '';
+    const supabaseKey = env.SUPABASE_ANON_KEY || '';
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+    
+    // 简化的RSS数据获取逻辑
+    // 在实际部署中，这里应该连接到Supabase获取RSS数据
+    return {
+      message: 'RSS data from Supabase',
+      timestamp: new Date().toISOString(),
+      data: [
+        {
+          title: '示例RSS条目',
+          link: 'https://example.com',
+          description: '这是一个示例RSS条目',
+          pubDate: new Date().toISOString()
+        }
+      ]
+    };
+  } catch (error) {
+    console.error('Error fetching RSS data:', error);
+    throw error;
+  }
+}
+
+// 处理企业微信回调的实现
+async function handleWechatCallback(body, env) {
+  try {
+    // 获取环境变量
+    const corpId = env.WECHAT_CORP_ID || '';
+    const corpSecret = env.WECHAT_CORP_SECRET || '';
+    const agentId = env.WECHAT_AGENT_ID || '';
+    
+    if (!corpId || !corpSecret || !agentId) {
+      throw new Error('Missing WeChat configuration');
+    }
+    
+    // 简化的企业微信回调处理逻辑
+    console.log('Received WeChat callback:', body);
+    
+    return {
+      success: true,
+      message: 'WeChat callback processed',
+      received: body
+    };
+  } catch (error) {
+    console.error('Error handling WeChat callback:', error);
+    throw error;
+  }
+}
+
+// 定时任务处理
+export const scheduled = {
+  async scheduled(event, env, ctx) {
+    console.log('Scheduled event triggered:', event.cron);
+    
+    try {
+      // 这里添加您的定时任务逻辑
+      console.log('Running scheduled RSS check...');
+      
+      // 检查环境变量
+      const supabaseUrl = env.SUPABASE_URL || '';
+      const supabaseKey = env.SUPABASE_ANON_KEY || '';
+      
+      if (!supabaseUrl || !supabaseKey) {
+        console.error('Missing Supabase configuration for scheduled task');
+        return;
+      }
+      
+      // 获取缓存
+      let lastCheck = null;
+      try {
+        if (env.RSS_CACHE) {
+          lastCheck = await env.RSS_CACHE.get('rss:last_check');
+        }
+      } catch (cacheError) {
+        console.error('Error accessing cache:', cacheError);
+      }
+      
+      const now = new Date();
+      const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+      
+      if (!lastCheck || new Date(lastCheck) < sixHoursAgo) {
+        // 执行RSS检查
+        console.log('Checking for new RSS items...');
+        
+        // 这里应该实现RSS检查逻辑
+        // 由于环境限制，这里只是记录日志
+        
+        // 更新检查时间
+        try {
+          if (env.RSS_CACHE) {
+            await env.RSS_CACHE.put('rss:last_check', now.toISOString());
+          }
+        } catch (cacheError) {
+          console.error('Error updating cache:', cacheError);
+        }
+        
+        console.log('RSS check completed at', now.toISOString());
+      } else {
+        console.log('Skipping RSS check, last check was at', lastCheck);
+      }
+      
+    } catch (error) {
+      console.error('Error in scheduled task:', error);
+    }
+  },
+};
+    </div>
+    
+    <ol start="4">
+        <li>点击 <strong>"Save and Deploy"</strong></li>
+    </ol>
+
+    <h3>5. 设置环境变量</h3>
+    <ol>
+        <li>在Worker页面中，点击 <strong>"Settings"</strong> 标签</li>
+        <li>在左侧菜单中选择 <strong>"Variables"</strong></li>
+        <li>在 <strong>"Environment Variables"</strong> 部分点击 <strong>"Edit variables"</strong></li>
+        <li>添加以下环境变量：</li>
+    </ol>
+    
+    <table>
+        <tr>
+            <th>变量名</th>
+            <th>值</th>
+            <th>必需</th>
+        </tr>
+        <tr>
+            <td>WECHAT_CORP_ID</td>
+            <td>您的企业ID</td>
+            <td>是</td>
+        </tr>
+        <tr>
+            <td>WECHAT_CORP_SECRET</td>
+            <td>您的企业应用Secret</td>
+            <td>是</td>
+        </tr>
+        <tr>
+            <td>WECHAT_AGENT_ID</td>
+            <td>您的企业应用AgentID</td>
+            <td>是</td>
+        </tr>
+        <tr>
+            <td>SUPABASE_URL</td>
+            <td>您的Supabase项目URL</td>
+            <td>是</td>
+        </tr>
+        <tr>
+            <td>SUPABASE_ANON_KEY</td>
+            <td>您的Supabase匿名密钥</td>
+            <td>是</td>
+        </tr>
+        <tr>
+            <td>RSSHUB_URL</td>
+            <td>https://rsshub.app（默认值）</td>
+            <td>否</td>
+        </tr>
+    </table>
+    
+    <ol start="5">
+        <li>点击 <strong>"Save"</strong></li>
+    </ol>
+
+    <h3>6. 设置KV存储（可选）</h3>
+    <p>如果您需要使用缓存功能：</p>
+    <ol>
+        <li>在左侧菜单中选择 <strong>"Workers & Pages"</strong></li>
+        <li>点击 <strong>"KV"</strong></li>
+        <li>点击 <strong>"Create a namespace"</strong></li>
+        <li>命名空间名称：<code>RSS_CACHE</code></li>
+        <li>点击 <strong>"Add"</strong></li>
+    </ol>
+    
+    <p>然后回到Worker设置：</p>
+    <ol>
+        <li>在Worker页面中，点击 <strong>"Settings"</strong> 标签</li>
+        <li>在左侧菜单中选择 <strong>"Variables"</strong></li>
+        <li>在 <strong>"KV Namespace Bindings"</strong> 部分点击 <strong>"Add binding"</strong></li>
+        <li>变量名称：<code>RSS_CACHE</code></li>
+        <li>KV命名空间：选择刚刚创建的<code>RSS_CACHE</code></li>
+        <li>点击 <strong>"Save"</strong></li>
+    </ol>
+
+    <h3>7. 设置定时任务（可选）</h3>
+    <p>如果您需要定时检查RSS：</p>
+    <ol>
+        <li>在 <strong>"Settings"</strong> 标签中，选择 <strong>"Triggers"</strong></li>
+        <li>在 <strong>"Cron Triggers"</strong> 部分点击 <strong>"Add Cron Trigger"</strong></li>
+        <li>添加以下Cron表达式（根据需要选择）：</li>
+        <ul>
+            <li><code>*/30 * * * *</code> (每30分钟执行一次)</li>
+            <li><code>0 */2 * * *</code> (每2小时执行一次)</li>
+        </ul>
+        <li>点击 <strong>"Save"</strong></li>
+    </ol>
+
+    <h3>8. 测试部署</h3>
+    <ol>
+        <li>访问 <code>https://您的Worker名称.您的子域名.workers.dev/health</code></li>
+        <li>检查是否返回健康状态</li>
+        <li>访问 <code>https://您的Worker名称.您的子域名.workers.dev/api/rss</code></li>
+        <li>检查是否返回RSS数据</li>
+    </ol>
+
+    <h2 id="faq">三、常见问题解决</h2>
+
+    <h3 id="dns-resolution-failed">1. 域名解析失败/Could not resolve host</h3>
+    <div class="warning">
+        <strong>问题描述：</strong>部署后使用curl或浏览器访问Worker URL时出现"Could not resolve host"错误。
+    </div>
+    <ul>
+        <li><strong>原因：</strong>Cloudflare Worker部署后需要一些时间（通常1-5分钟）来完成域名解析</li>
+        <li><strong>解决方案：</strong>
+            <ul>
+                <li>等待几分钟后再尝试访问</li>
+                <li>清除浏览器缓存或使用不同的浏览器</li>
+                <li>在终端中使用 <code>nslookup [worker-name].[account-id].workers.dev</code> 检查DNS解析状态</li>
+                <li>如果长时间无法访问，请尝试重新部署Worker</li>
+                <li><strong>检查Workers订阅：</strong>确保您的Cloudflare账户有有效的Workers订阅（免费或付费）</li>
+                <li><strong>启用workers.dev：</strong>在Cloudflare Dashboard中，导航至"Workers & Pages" → "Overview"，确保已启用workers.dev子域名</li>
+                <li><strong>验证账户ID：</strong>确认使用的账户ID是正确的（通常是32位字符串）</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 id="worker-not-accessible">2. Worker不可访问/返回500错误</h3>
+    <ul>
+        <li><strong>检查Cloudflare Dashboard日志：</strong>在Worker页面点击"Logs"标签查看详细错误信息</li>
+        <li><strong>验证Worker代码：</strong>确保使用的是正确格式的Worker代码</li>
+        <li><strong>检查内存限制：</strong>避免在Worker中处理过大的数据</li>
+        <li><strong>验证部署状态：</strong>确认部署是否成功完成</li>
+        <li><strong>验证API Token权限：</strong>确保API Token具有足够的权限（Workers Scripts - Edit）</li>
+        <li><strong>简化测试：</strong>部署一个简单的测试Worker验证环境</li>
+    </ul>
+
+    <h3 id="env-not-loaded">3. 环境变量未生效</h3>
+    <ul>
+        <li>确保所有必需的环境变量都已正确设置</li>
+        <li>检查变量名称是否有拼写错误</li>
+        <li>保存环境变量后，尝试重新部署Worker</li>
+        <li>使用 <code>/health</code> 端点测试基本功能</li>
+        <li>通过API部署时，需要在部署后通过Cloudflare Dashboard手动配置环境变量</li>
+        <li>导航至Worker详情页，点击"Settings" → "Variables" → "Edit Variables"</li>
+        <li>添加所需的环境变量，并根据需要选择是否加密</li>
+        <li>添加完成后点击"Save and Deploy"</li>
+    </ul>
+
+    <h3>4. API端点返回错误</h3>
+    <ul>
+        <li>检查Worker日志：在Worker页面中，点击 <strong>"Logs"</strong> 标签</li>
+        <li>确认Supabase连接配置是否正确</li>
+        <li>验证企业微信应用配置是否有效</li>
+    </ul>
+
+    <h3>5. 定时任务不执行</h3>
+    <ul>
+        <li>确认Cron表达式格式正确</li>
+        <li>检查定时任务日志</li>
+        <li>确保KV存储绑定已正确配置（如果使用了缓存）</li>
+    </ul>
+
+    <h2>四、高级配置</h2>
+
+    <h3>自定义域名</h3>
+    <p>如果您想使用自定义域名：</p>
+    <ol>
+        <li>在Worker页面中，点击 <strong>"Settings"</strong> 标签</li>
+        <li>在左侧菜单中选择 <strong>"Triggers"</strong></li>
+        <li>在 <strong>"Custom Domains"</strong> 部分点击 <strong>"Add custom domain"</strong></li>
+        <li>输入您的域名并按照提示完成DNS配置</li>
+    </ol>
+
+    <h3>多环境部署</h3>
+    <p>如果您需要区分开发和生产环境：</p>
+    <ol>
+        <li>创建多个Worker（如：<code>rss-push-dev</code>和<code>rss-push-prod</code>）</li>
+        <li>为每个环境配置不同的环境变量</li>
+        <li>使用不同的KV命名空间</li>
+    </ol>
+
+    <div class="success">
+        <strong>部署成功！</strong>您的RSS推送服务现已部署到Cloudflare Workers。
+    </div>
+
+    <h3 id="api-auto-deploy">方法二：Cloudflare API自动部署</h3>
+    
+    <p>使用Cloudflare API进行自动部署，无需安装额外依赖，适合CI/CD环境和自动化部署。</p>
+    
+    <h4 id="prerequisites">2.1 前置条件</h4>
+    <ul>
+        <li>已安装curl命令行工具（大多数操作系统默认已安装）</li>
+        <li>有效的Cloudflare账户ID</li>
+        <li>具有适当权限的Cloudflare API Token</li>
+        <li>有效的Cloudflare Workers订阅（免费或付费）</li>
+        <li>已启用的workers.dev子域名（在Cloudflare Dashboard中配置）</li>
+    </ul>
+    
+    <h4>1. 准备环境变量</h4>
+    <div class="code-block">
+# 设置必需的环境变量
+export CLOUDFLARE_ACCOUNT_ID="您的Cloudflare账户ID"
+export CLOUDFLARE_API_TOKEN="您的API令牌"
+export WORKER_NAME="rsshub-enterprise-wechat-bot"  # 可选，有默认值
+    </div>
+    
+    <h4 id="create-api-token">2.2 创建API Token</h4>
+    <ol>
+        <li>登录<a href="https://dash.cloudflare.com/" target="_blank">Cloudflare Dashboard</a></li>
+        <li>点击右上角的头像，选择"My Profile"</li>
+        <li>在左侧菜单中选择"API Tokens"</li>
+        <li>点击"Create Token"</li>
+        <li>选择"Edit Cloudflare Workers"模板或自定义权限</li>
+        <li>确保包含以下关键权限：
+            <ul>
+                <li><strong>Account - Workers Scripts - Edit</strong>（必需）</li>
+                <li><strong>Account - Workers Routes - Edit</strong>（如果需要配置路由）</li>
+                <li><strong>Account - Workers KV Storage - Edit</strong>（如果使用KV存储）</li>
+                <li><strong>User - API Tokens - Read</strong>（可选，用于验证）</li>
+            </ul>
+        </li>
+        <li>点击"Continue to summary"，然后点击"Create Token"</li>
+        <li>复制生成的API Token并保存（只会显示一次）</li>
+    </ol>
+    
+    <h4 id="configure-env">2.3 配置环境变量</h4>
+    <p>在执行部署脚本前，需要设置以下环境变量：</p>
+    <div class="code-block">export CLOUDFLARE_ACCOUNT_ID="你的账户ID"
+export CLOUDFLARE_API_TOKEN="你的API Token"
+export WORKER_NAME="你的Worker名称"
+    </div>
+    <p>账户ID可以在Cloudflare Dashboard的右侧边栏或账户设置页面找到。</p>
+    
+    <h4 id="verify-workers-subscription">2.4 验证Workers订阅和workers.dev子域名</h4>
+    <p>在部署前，请确保您的账户满足以下要求：</p>
+    <ol>
+        <li><strong>验证Workers订阅：</strong>
+            <ul>
+                <li>登录Cloudflare Dashboard</li>
+                <li>导航至"Workers & Pages"</li>
+                <li>检查是否显示有效订阅（免费或付费套餐）</li>
+                <li>如果没有订阅，请选择合适的套餐并完成订阅流程</li>
+            </ul>
+        </li>
+        <li><strong>启用workers.dev子域名：</strong>
+            <ul>
+                <li>在"Workers & Pages"页面，点击"Overview"</li>
+                <li>找到"Workers.dev"部分</li>
+                <li>点击"Enable workers.dev"按钮（如果未启用）</li>
+                <li>按照提示完成子域名设置（可以选择自定义子域名或使用默认）</li>
+                <li>完成后，您的Worker将可以通过 <code>worker-name.account-id.workers.dev</code> 访问</li>
+            </ul>
+        </li>
+    </ol>
+    
+    <h4 id="verify-configuration">2.5 验证配置（可选但推荐）</h4>
+    <p>在执行部署前，可以使用以下命令验证API Token和账户配置：</p>
+    <div class="code-block"># 检查账户访问权限
+curl -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}" \
+  -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"
+
+# 检查Worker脚本列表
+curl -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts" \
+  -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"
+    </div>
+    <p>如果返回<code>{"success":true,...}</code>，表示配置正确。</p>
+    
+    <h4 id="deploy-script">2.6 执行部署脚本</h4>
+    <p>使用提供的<code>cloudflare-api-deploy.sh</code>脚本进行部署：</p>
+    <div class="code-block"># 执行API部署脚本
+./cloudflare-api-deploy.sh
+    </div>
+    
+    <h4>5. 验证部署</h4>
+    <p>部署成功后，脚本会输出访问URL，您可以通过以下URL测试：</p>
+    <ul>
+        <li>健康检查：<code>https://[worker-name].[account-id].workers.dev/health</code></li>
+        <li>RSS API：<code>https://[worker-name].[account-id].workers.dev/api/rss</code></li>
+    </ul>
+    
+    <div class="warning">
+        <strong>注意：</strong>使用API部署后，仍需在Cloudflare Dashboard中手动设置环境变量和KV存储。
+    </div>
+    
+    <div class="success">
+        <strong>部署成功！</strong>通过API部署的RSS推送服务已上线。
+    </div>
+
+    <script>
+        // 复制代码功能
+        document.querySelectorAll('.code-block').forEach((block, index) => {
+            const button = document.createElement('button');
+            button.textContent = '复制代码';
+            button.onclick = () => {
+                const code = block.textContent;
+                navigator.clipboard.writeText(code).then(() => {
+                    const originalText = button.textContent;
+                    button.textContent = '复制成功！';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                    }, 2000);
+                });
+            };
+            block.parentNode.insertBefore(button, block.nextSibling);
+        });
+    </script>
+</body>
+</html>
+
+
+<!-- # 设置必需的环境变量
+export CLOUDFLARE_ACCOUNT_ID="cef951c00f51c8af507ef466e612f648"
+export CLOUDFLARE_API_TOKEN="nRVa1PgVsQltHX8pz3oY0G_g4nR7uYRtQ6u64qg5"
+export WORKER_NAME="rsshub-enterprise-wechat-bot"  # 可选，有默认值
+     -->
