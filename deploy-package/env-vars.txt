@@ -1,0 +1,11 @@
+# 请在Cloudflare Dashboard中设置以下环境变量:
+
+# 必需的环境变量:
+WECHAT_CORP_ID=您的企业ID
+WECHAT_CORP_SECRET=您的企业应用Secret
+WECHAT_AGENT_ID=您的企业应用AgentID
+SUPABASE_URL=您的Supabase项目URL
+SUPABASE_ANON_KEY=您的Supabase匿名密钥
+
+# 可选的环境变量:
+RSSHUB_URL=https://rsshub.app
