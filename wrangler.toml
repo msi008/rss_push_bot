@@ -1,0 +1,51 @@
+name = "rsshub-enterprise-wechat-bot"
+main = "worker.js"
+compatibility_date = "2023-12-01"
+
+[env.production]
+name = "rsshub-enterprise-wechat-bot-prod"
+
+[env.staging]
+name = "rsshub-enterprise-wechat-bot-staging"
+
+# Node.js compatibility
+node_compat = true
+
+# Environment variables
+[vars]
+# 这些变量需要在部署时设置
+# SUPABASE_URL = "your-supabase-url"
+# SUPABASE_ANON_KEY = "your-supabase-anon-key"
+# SUPABASE_SERVICE_KEY = "your-supabase-service-key"
+# WECHAT_CORP_ID = "your-wechat-corp-id"
+# WECHAT_CORP_SECRET = "your-wechat-corp-secret"
+# WECHAT_AGENT_ID = "your-wechat-agent-id"
+# RSSHUB_URL = "https://rsshub.app"
+
+# KV namespace for caching
+[[kv_namespaces]]
+binding = "RSS_CACHE"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+# Durable Objects for scheduled tasks
+[[durable_objects.bindings]]
+name = "SCHEDULER"
+class_name = "Scheduler"
+
+# Resource limits
+[limits]
+cpu_ms = 50000
+
+# Build configuration
+[build]
+command = "npm run build"
+
+# Route configuration (optional)
+# routes = [
+#   { pattern = "your-domain.com/*", zone_name = "your-domain.com" }
+# ]
+
+# Scheduled events for cron jobs
+[[triggers]]
+crons = ["0 */6 * * *"]  # 每6小时运行一次
