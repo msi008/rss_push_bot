@@ -1,15 +1,7 @@
 name = "rsshub-enterprise-wechat-bot"
 main = "worker.js"
-compatibility_date = "2023-12-01"
-
-[env.production]
-name = "rsshub-enterprise-wechat-bot-prod"
-
-[env.staging]
-name = "rsshub-enterprise-wechat-bot-staging"
-
-# Node.js compatibility
-node_compat = true
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
 
 # Environment variables
 [vars]

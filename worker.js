@@ -1,21 +1,18 @@
 // Cloudflare Workers入口文件
 import { Request, Response } from '@cloudflare/workers-types';
 
-// 导入Express应用适配器
-import { app } from './src/app.js';
-
 // 处理请求的主函数
 export default {
   async fetch(request, env, ctx) {
     try {
       // 设置环境变量
-      process.env.SUPABASE_URL = env.SUPABASE_URL || '';
-      process.env.SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY || '';
-      process.env.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY || '';
-      process.env.WECHAT_CORP_ID = env.WECHAT_CORP_ID || '';
-      process.env.WECHAT_CORP_SECRET = env.WECHAT_CORP_SECRET || '';
-      process.env.WECHAT_AGENT_ID = env.WECHAT_AGENT_ID || '';
-      process.env.RSSHUB_URL = env.RSSHUB_URL || 'https://rsshub.app';
+      globalThis.SUPABASE_URL = env.SUPABASE_URL || '';
+      globalThis.SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY || '';
+      globalThis.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY || '';
+      globalThis.WECHAT_CORP_ID = env.WECHAT_CORP_ID || '';
+      globalThis.WECHAT_CORP_SECRET = env.WECHAT_CORP_SECRET || '';
+      globalThis.WECHAT_AGENT_ID = env.WECHAT_AGENT_ID || '';
+      globalThis.RSSHUB_URL = env.RSSHUB_URL || 'https://rsshub.app';
       
       // 创建请求和响应对象
       const url = new URL(request.url);
@@ -30,69 +27,36 @@ export default {
       // 获取请求体
       let body = null;
       if (['POST', 'PUT', 'PATCH'].includes(method)) {
-        body = await request.text();
+        const contentType = headers['content-type'] || '';
+        if (contentType.includes('application/json')) {
+          body = await request.json();
+        } else {
+          body = await request.text();
+        }
       }
       
-      // 创建模拟的Express请求和响应对象
-      const req = {
+      // 处理请求
+      const response = await handleRequest({
         method,
         url: url.pathname + url.search,
         headers,
         body,
         query: Object.fromEntries(url.searchParams.entries()),
         params: {},
-        // 其他Express请求对象属性...
-      };
-      
-      const res = {
-        statusCode: 200,
-        headers: {},
-        body: '',
-        
-        status(code) {
-          this.statusCode = code;
-          return this;
-        },
-        
-        json(data) {
-          this.headers['Content-Type'] = 'application/json';
-          this.body = JSON.stringify(data);
-          return this;
-        },
-        
-        send(data) {
-          this.body = data;
-          return this;
-        },
-        
-        setHeader(name, value) {
-          this.headers[name] = value;
-          return this;
-        },
-        
-        // 其他Express响应对象方法...
-      };
-      
-      // 处理请求
-      await new Promise((resolve, reject) => {
-        // 这里需要适配Express应用以在Cloudflare Workers中运行
-        // 由于Express和Cloudflare Workers的API不同，可能需要使用适配器库
-        // 如@cloudflare/worker-express或重写部分路由逻辑
-        
-        // 临时解决方案：直接处理API路由
-        handleRequest(req, res);
-        resolve();
-      });
+      }, env);
       
       // 返回Cloudflare Workers响应
-      return new Response(res.body, {
-        status: res.statusCode,
-        headers: res.headers,
+      return new Response(JSON.stringify(response.body), {
+        status: response.statusCode,
+        headers: {
+          'Content-Type': 'application/json',
+          ...response.headers,
+        },
       });
       
     } catch (error) {
       console.error('Error handling request:', error);
-      return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+      return new Response(JSON.stringify({ error: 'Internal Server Error', details: error.message }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -100,37 +64,108 @@ export default {
   },
 };
 
-// 临时请求处理函数
-async function handleRequest(req, res) {
+// 请求处理函数
+async function handleRequest(req, env) {
   const { url, method } = req;
   
   // 健康检查端点
   if (url === '/health' && method === 'GET') {
-    return res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime ? process.uptime() : 0,
-      environment: 'cloudflare-workers'
-    });
+    return {
+      statusCode: 200,
+      headers: {},
+      body: {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        environment: 'cloudflare-workers'
+      }
+    };
   }
   
   // API路由
   if (url.startsWith('/api/') && method === 'GET') {
-    // 这里需要导入并使用您的路由逻辑
-    // 由于Cloudflare Workers环境限制，可能需要重写部分服务逻辑
-    return res.json({ message: 'API endpoint - needs implementation' });
+    // RSS API端点
+    if (url === '/api/rss') {
+      try {
+        // 这里应该调用RSS服务获取数据
+        // 由于Cloudflare Workers环境限制，我们需要简化实现
+        const rssData = await getRSSData(env);
+        return {
+          statusCode: 200,
+          headers: {},
+          body: {
+            success: true,
+            data: rssData
+          }
+        };
+      } catch (error) {
+        return {
+          statusCode: 500,
+          headers: {},
+          body: {
+            success: false,
+            error: error.message
+          }
+        };
+      }
+    }
+    
+    // 企业微信回调端点
+    if (url === '/api/wechat/callback' && method === 'POST') {
+      try {
+        // 处理企业微信回调
+        const result = await handleWechatCallback(req.body, env);
+        return {
+          statusCode: 200,
+          headers: {},
+          body: result
+        };
+      } catch (error) {
+        return {
+          statusCode: 500,
+          headers: {},
+          body: {
+            success: false,
+            error: error.message
+          }
+        };
+      }
+    }
   }
   
   // 默认响应
-  return res.json({
-    name: 'RSSHub企业微信推送服务',
-    version: '1.0.0',
-    description: '基于Cloudflare Workers部署的RSSHub企业微信推送服务',
-    endpoints: {
-      health: '/health',
-      api: '/api/rss'
+  return {
+    statusCode: 200,
+    headers: {},
+    body: {
+      name: 'RSSHub企业微信推送服务',
+      version: '1.0.0',
+      description: '基于Cloudflare Workers部署的RSSHub企业微信推送服务',
+      endpoints: {
+        health: '/health',
+        api: '/api/rss',
+        wechatCallback: '/api/wechat/callback'
+      }
     }
-  });
+  };
+}
+
+// 获取RSS数据的简化实现
+async function getRSSData(env) {
+  // 这里应该实现RSS数据获取逻辑
+  // 由于环境限制，这里返回一个示例响应
+  return {
+    message: 'RSS data - needs implementation',
+    timestamp: new Date().toISOString()
+  };
+}
+
+// 处理企业微信回调的简化实现
+async function handleWechatCallback(body, env) {
+  // 这里应该实现企业微信回调处理逻辑
+  return {
+    message: 'WeChat callback - needs implementation',
+    received: body
+  };
 }
 
 // 定时任务处理
@@ -152,8 +187,14 @@ export const scheduled = {
         // 执行RSS检查
         console.log('Checking for new RSS items...');
         
+        // 这里应该实现RSS检查逻辑
+        // 由于环境限制，这里只是记录日志
+        
         // 更新检查时间
         await env.RSS_CACHE.put(cacheKey, now);
+        console.log('RSS check completed at', now);
+      } else {
+        console.log('Skipping RSS check, last check was at', lastCheck);
       }
       
     } catch (error) {

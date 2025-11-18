@@ -11,7 +11,7 @@
 
 ## 部署步骤
 
-### 方法一：使用自动部署脚本（推荐）
+### 方法一：使用简化部署脚本（推荐）
 
 1. 克隆项目到本地：
    ```bash
@@ -19,13 +19,23 @@
    cd rss_push
    ```
 
-2. 运行部署脚本：
+2. 运行简化部署脚本：
+   ```bash
+   chmod +x cloudflare-simple-deploy.sh
+   ./cloudflare-simple-deploy.sh
+   ```
+
+3. 按照脚本输出中的说明，在Cloudflare Dashboard中配置环境变量
+
+### 方法二：使用完整部署脚本
+
+1. 运行完整部署脚本：
    ```bash
    chmod +x cloudflare-deploy.sh
    ./cloudflare-deploy.sh
    ```
 
-3. 按照提示输入必要的环境变量：
+2. 按照提示输入必要的环境变量：
    - Supabase URL
    - Supabase Anon Key
    - Supabase Service Key
@@ -34,7 +44,7 @@
    - 企业微信Agent ID
    - RSSHub URL（可选，默认为https://rsshub.app）
 
-### 方法二：手动部署
+### 方法三：手动部署
 
 1. 安装Wrangler CLI：
    ```bash
@@ -46,29 +56,44 @@
    wrangler auth
    ```
 
-3. 创建KV命名空间：
+3. 创建KV命名空间（可选）：
    ```bash
    wrangler kv:namespace create "RSS_CACHE"
    wrangler kv:namespace create "RSS_CACHE" --preview
    ```
 
-4. 更新`wrangler.toml`文件中的KV命名空间ID
+4. 更新`wrangler.toml`文件中的KV命名空间ID（如果使用）
 
-5. 设置环境变量：
-   ```bash
-   wrangler secret put SUPABASE_URL
-   wrangler secret put SUPABASE_ANON_KEY
-   wrangler secret put SUPABASE_SERVICE_KEY
-   wrangler secret put WECHAT_CORP_ID
-   wrangler secret put WECHAT_CORP_SECRET
-   wrangler secret put WECHAT_AGENT_ID
-   wrangler secret put RSSHUB_URL
-   ```
-
-6. 部署到Cloudflare Workers：
+5. 部署到Cloudflare Workers：
    ```bash
    wrangler deploy
    ```
+
+6. 在Cloudflare Dashboard中设置环境变量
+
+## 常见部署问题及解决方案
+
+### 1. 错误：The package "@cloudflare/workerd-linux-64" could not be found
+
+这个错误通常是由于wrangler版本与Cloudflare Workers环境不兼容导致的。解决方案：
+
+1. 使用简化部署脚本（推荐）
+2. 或者更新wrangler.toml配置文件：
+   ```toml
+   compatibility_date = "2024-01-01"
+   compatibility_flags = ["nodejs_compat"]
+   ```
+   删除`node_compat = true`行
+
+### 2. 部署失败：内存不足或超时
+
+1. 简化worker.js代码，移除不必要的依赖
+2. 使用Cloudflare Dashboard手动设置环境变量，而不是通过命令行
+
+### 3. 定时任务不执行
+
+1. 在Cloudflare Dashboard中手动添加Cron Triggers
+2. 确保KV命名空间已正确创建并绑定
 
 ## 配置企业微信回调
 
@@ -89,29 +114,32 @@
 | WECHAT_AGENT_ID | 企业微信应用ID | 是 |
 | RSSHUB_URL | RSSHub服务地址 | 否，默认为https://rsshub.app |
 
+## 在Cloudflare Dashboard中配置环境变量
+
+1. 登录Cloudflare Dashboard
+2. 进入Workers & Pages
+3. 选择您的Worker
+4. 点击"Settings" -> "Variables"
+5. 添加环境变量
+
 ## 定时任务配置
 
-项目已配置定时任务，每6小时检查一次RSS更新。您可以在`wrangler.toml`文件中修改`crons`表达式来调整执行频率。
+项目支持定时任务，每6小时检查一次RSS更新。您可以通过以下方式配置：
 
-## 常见问题
+1. 在Cloudflare Dashboard中添加Cron Triggers
+2. 或在wrangler.toml中添加：
+   ```toml
+   [[triggers]]
+   crons = ["0 */6 * * *"]  # 每6小时运行一次
+   ```
 
-### 1. 部署失败
+## KV存储配置（可选）
 
-- 检查环境变量是否正确设置
-- 确保Supabase项目已创建且配置正确
-- 检查企业微信应用凭证是否有效
+如果需要使用KV存储进行缓存：
 
-### 2. 定时任务不执行
-
-- 确保KV命名空间已正确创建
-- 检查`wrangler.toml`中的cron表达式格式
-- 在Cloudflare Dashboard中检查Cron Triggers状态
-
-### 3. 企业微信回调失败
-
-- 确保回调URL已正确配置
-- 检查企业微信应用权限设置
-- 查看Cloudflare Workers日志获取详细错误信息
+1. 在Cloudflare Dashboard中创建KV命名空间
+2. 在Worker设置中绑定KV命名空间
+3. 绑定名称为"RSS_CACHE"
 
 ## 监控和日志
 
@@ -128,10 +156,7 @@
    wrangler deploy
    ```
 
-2. 如需更新环境变量：
-   ```bash
-   wrangler secret put VARIABLE_NAME
-   ```
+2. 如需更新环境变量，在Cloudflare Dashboard中修改
 
 ## 删除部署
 
@@ -142,13 +167,15 @@ wrangler delete
 
 ## 注意事项
 
-1. Cloudflare Workers有请求执行时间限制（50ms CPU时间）
-2. 免费版有每日请求次数限制
+1. Cloudflare Workers有请求执行时间限制（50ms CPU时间，免费版10ms）
+2. 免费版有每日请求次数限制（100,000次/天）
 3. 定时任务在免费版有执行频率限制
 4. 确保代码符合Cloudflare Workers的安全策略
+5. 避免使用Node.js特定的API，使用Web标准API
 
 ## 更多资源
 
 - [Cloudflare Workers文档](https://developers.cloudflare.com/workers/)
 - [Wrangler CLI文档](https://developers.cloudflare.com/workers/wrangler/)
 - [Supabase文档](https://supabase.com/docs)
+- [Cloudflare Workers兼容性](https://developers.cloudflare.com/workers/learning/how-workers-works/)
